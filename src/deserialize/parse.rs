@@ -529,7 +529,11 @@ fn parse_number(lit: &str) -> Result<Edn, Code> {
         return Ok(Edn::Rational((n, d)));
     }
 
-    Err(Code::InvalidNumber)
+    match number {
+        n if n.to_uppercase().ends_with('N') => Ok(Edn::ArbitraryInt(n)),
+        n if n.to_uppercase().ends_with('M') => Ok(Edn::ArbitraryFloat(n)),
+        _ => Err(Code::InvalidNumber),
+    }
 }
 
 #[inline]

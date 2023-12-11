@@ -140,6 +140,14 @@ mod test {
             Edn::from_str("999999999999999999999.0").unwrap(),
             Edn::Double(edn::Double::from(1e21f64))
         );
+        assert_eq!(
+            Edn::from_str("923845827439582743095822208275092834752094387245N").unwrap(),
+            Edn::ArbitraryInt("923845827439582743095822208275092834752094387245N".to_owned())
+        );
+        assert_eq!(
+            Edn::from_str("92384582743958274.3095822208275092834752094387245M").unwrap(),
+            Edn::ArbitraryFloat("92384582743958274.3095822208275092834752094387245M".to_owned())
+        );
     }
 
     #[test]
