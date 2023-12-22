@@ -321,17 +321,7 @@ fn complex_json() {
 }
 ```
 
-**to_string/to_debug**
-
-`to_debug` emits a Debug version of `Edn` type.
-```rust
-use edn_rs::edn::{Edn, Vector};
-
-let edn = Edn::Vector(Vector::new(vec![Edn::Int(5), Edn::Int(6), Edn::Int(7)]));
-let expected = "Vector(Vector([Int(5), Int(6), Int(7)]))";
-
-assert_eq!(edn.to_debug(), expected);
-```
+**to_string**
 
 `to_string` emits a valid edn.
 ```rust
@@ -361,9 +351,9 @@ fn complex_ok() -> Result<(), EdnError> {
 - [x] Define `struct` to map EDN info `EdnNode`
 - [x] Define EDN types, `EdnType`
     - [x] Edn Type into primitive: `Edn::Bool(true).into() -> true`. This was done by `to_float`, `to_bool`, `to_int`, `to_vec`.
-    - [x] implement `futures::Future` trait to `Edn`
-    - [x] `to_string()` for `Edn`.
-    - [x] `to_debug()` for `Edn`.
+    - [x] `to_string()` for `Edn`, returning a String with valid EDN.
+    - [x] `Display` trait for `Edn`, returning valid EDN.
+    - [x] `Debug` trait for `Edn`, returning internal types with data.
 - [x] Parse EDN data [`from_str`](https://docs.rs/edn-rs/0.17.4/edn_rs/deserialize/fn.from_str.html):
     - [x] nil `""`
     - [x] String `"\"string\""`

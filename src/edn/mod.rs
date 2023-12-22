@@ -523,33 +523,6 @@ impl Edn {
         }
     }
 
-    /// **[`std::fmt::Debug`]**
-    /// `to_debug` is a wrapper of `format!("{:?}", &self)` for `&Edn`.
-    /// ```
-    /// use edn_rs::edn::{Edn, Vector};
-    ///
-    /// let edn = Edn::Vector(Vector::new(vec![Edn::Int(5), Edn::Int(6), Edn::Int(7)]));
-    /// let expected = "Vector(Vector([Int(5), Int(6), Int(7)]))";
-    ///
-    /// assert_eq!(edn.to_debug(), expected);
-    /// ```
-    ///
-    /// While `to_string` returns a valid edn:
-    ///
-    ///  ```
-    /// use edn_rs::edn::{Edn, Vector};
-    ///
-    /// let edn = Edn::Vector(Vector::new(vec![Edn::Int(5), Edn::Int(6), Edn::Int(7)]));
-    /// let expected = "[5 6 7]";
-    ///
-    /// assert_eq!(edn.to_string(), expected);
-    /// ```
-    ///
-    #[allow(clippy::must_use_candidate)]
-    pub fn to_debug(&self) -> String {
-        format!("{self:?}")
-    }
-
     /// Index into a EDN vector, list, set or map. A string index can be used to access a
     /// value in a map, and a u64 index can be used to access an element of a
     /// seqs.
@@ -817,7 +790,7 @@ mod test {
             ":b".to_string() => Edn::Bool(false), ":c".to_string() => Edn::Nil},
         ));
         let expected = "Map(Map({\":a\": Key(\":something\"), \":b\": Bool(false), \":c\": Nil}))";
-        assert_eq!(edn.to_debug(), expected);
+        assert_eq!(format!("{edn:?}"), expected);
     }
 
     #[test]
