@@ -6,8 +6,8 @@ mod test {
     use alloc::collections::BTreeSet;
     use core::str::FromStr;
 
-    use edn::{Error, List, Vector};
-    use edn_rs::{edn, from_edn, from_str, hset, map, set, Edn, Map, Set};
+    use edn::{List, Vector};
+    use edn_rs::{edn, from_edn, from_str, hset, map, set, Edn, EdnError, Map, Set};
 
     #[test]
     fn parse_set_with_commas() {
@@ -172,7 +172,7 @@ mod test {
     #[test]
     fn deser_btreeset_with_error() {
         let edn = "#{\"a\", 5, \"b\"}";
-        let err: Result<BTreeSet<u64>, Error> = from_str(edn);
+        let err: Result<BTreeSet<u64>, EdnError> = from_str(edn);
 
         assert!(err.is_err());
     }

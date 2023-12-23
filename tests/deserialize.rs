@@ -29,13 +29,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(feature = "sets"))]
-    // Special case of running into a set without the feature enabled
-    fn parse_set_without_set_feature() {
-        assert!(Edn::from_str("#{true, \\c, 3,four, }").is_err())
-    }
-
-    #[test]
     fn parse_commas_are_whitespace() {
         assert_eq!(Edn::from_str(",,,,, \r\n,,,").unwrap(), Edn::Empty);
     }
@@ -779,10 +772,7 @@ mod test {
 
     #[test]
     fn parse_numberic_symbol_with_doube_e() {
-        assert_eq!(
-            Edn::from_str("5011227E71367421E12").unwrap(),
-            Edn::Symbol("5011227E71367421E12".to_string())
-        );
+        assert!(Edn::from_str("5011227E71367421E12").is_err());
     }
 
     #[test]
