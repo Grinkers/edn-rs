@@ -1,9 +1,10 @@
+#![allow(clippy::inline_always)]
+
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 #[cfg(feature = "sets")]
 use alloc::collections::BTreeSet;
-use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::primitive::str;
@@ -25,7 +26,7 @@ struct Walker<'w> {
 
 impl Walker<'_> {
     // Slurps until whitespace or delimiter, returning the slice.
-    #[inline]
+    #[inline(always)]
     fn slurp_literal(&mut self) -> &str {
         let token = self.slice[self.ptr..]
             .split(|c: char| c.is_whitespace() || DELIMITERS.contains(&c))
@@ -38,7 +39,7 @@ impl Walker<'_> {
     }
 
     // Slurps a char. Special handling for chars that happen to be delimiters
-    #[inline]
+    #[inline(always)]
     fn slurp_char(&mut self) -> &str {
         let starting_ptr = self.ptr;
 
@@ -57,7 +58,7 @@ impl Walker<'_> {
     }
 
     // Slurps until whitespace or delimiter, returning the slice.
-    #[inline]
+    #[inline(always)]
     fn slurp_tag(&mut self) -> &str {
         let token = self.slice[self.ptr..]
             .split(|c: char| c.is_whitespace() && c != ',')
@@ -73,7 +74,7 @@ impl Walker<'_> {
         token
     }
 
-    #[inline]
+    #[inline(always)]
     fn slurp_str(&mut self) -> Result<Edn, Error> {
         let _ = self.nibble_next(); // Consume the leading '"' char
         let mut s = String::new();
@@ -92,6 +93,7 @@ impl Walker<'_> {
                                 code: Code::InvalidEscape,
                                 column: Some(self.column),
                                 line: Some(self.line),
+                                ptr: Some(self.ptr),
                             })
                         }
                     }
@@ -109,23 +111,22 @@ impl Walker<'_> {
                     code: Code::UnexpectedEOF,
                     column: Some(self.column),
                     line: Some(self.line),
+                    ptr: Some(self.ptr),
                 });
             }
         }
     }
 
     // Nibbles away until the next new line
-    #[inline]
+    #[inline(always)]
     fn nibble_newline(&mut self) {
         let len = self.slice[self.ptr..].split('\n').next().unwrap(); // At least an empty slice will always be on the first split, even on an empty str
-        self.line += 1;
-        self.column = 1;
         self.ptr += len.len();
         self.nibble_whitespace();
     }
 
     // Nibbles away until the start of the next form
-    #[inline]
+    #[inline(always)]
     fn nibble_whitespace(&mut self) {
         while let Some(n) = self.peek_next() {
             if n == ',' || n.is_whitespace() {
@@ -137,7 +138,7 @@ impl Walker<'_> {
     }
 
     // Consumes next
-    #[inline]
+    #[inline(always)]
     fn nibble_next(&mut self) -> Option<char> {
         let char = self.slice[self.ptr..].chars().next();
         if let Some(c) = char {
@@ -153,7 +154,7 @@ impl Walker<'_> {
     }
 
     // Peek into the next char
-    #[inline]
+    #[inline(always)]
     fn peek_next(&mut self) -> Option<char> {
         self.slice[self.ptr..].chars().next()
     }
@@ -167,13 +168,16 @@ pub fn parse(edn: &str) -> Result<Edn, Error> {
         line: 1,
     };
 
-    parse_foobar(&mut walker)
+    parse_internal(&mut walker)
 }
 
-fn parse_foobar(walker: &mut Walker<'_>) -> Result<Edn, Error> {
+#[inline]
+fn parse_internal(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     walker.nibble_whitespace();
     while let Some(next) = walker.peek_next() {
         let column_start = walker.column;
+        let ptr_start = walker.ptr;
+        let line_start = walker.line;
         if let Some(ret) = match next {
             '\\' => match parse_char(walker.slurp_char()) {
                 Ok(edn) => Some(Ok(edn)),
@@ -182,6 +186,7 @@ fn parse_foobar(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                         code,
                         line: Some(walker.line),
                         column: Some(column_start),
+                        ptr: Some(walker.ptr),
                     })
                 }
             },
@@ -201,8 +206,9 @@ fn parse_foobar(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                 Err(code) => {
                     return Err(Error {
                         code,
-                        line: Some(walker.line),
+                        line: Some(line_start),
                         column: Some(column_start),
+                        ptr: Some(ptr_start),
                     })
                 }
             },
@@ -213,6 +219,7 @@ fn parse_foobar(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     Ok(Edn::Empty)
 }
 
+#[inline]
 fn parse_tag_set_discard(walker: &mut Walker<'_>) -> Result<Option<Edn>, Error> {
     let _ = walker.nibble_next(); // Consume the leading '#' char
 
@@ -223,23 +230,26 @@ fn parse_tag_set_discard(walker: &mut Walker<'_>) -> Result<Option<Edn>, Error> 
     }
 }
 
+#[inline]
 fn parse_discard(walker: &mut Walker<'_>) -> Result<Option<Edn>, Error> {
     let _ = walker.nibble_next(); // Consume the leading '_' char
-    Ok(match parse_foobar(walker)? {
+    Ok(match parse_internal(walker)? {
         Edn::Empty => {
             return Err(Error {
                 code: Code::UnexpectedEOF,
                 line: Some(walker.line),
                 column: Some(walker.column),
+                ptr: Some(walker.ptr),
             })
         }
         _ => match walker.peek_next() {
-            Some(_) => Some(parse_foobar(walker)?),
+            Some(_) => Some(parse_internal(walker)?),
             None => None,
         },
     })
 }
 
+#[inline]
 #[cfg(feature = "sets")]
 fn parse_set(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     let _ = walker.nibble_next(); // Consume the leading '{' char
@@ -252,7 +262,7 @@ fn parse_set(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                 return Ok(Edn::Set(Set::new(set)));
             }
             Some(_) => {
-                let next = parse_foobar(walker)?;
+                let next = parse_internal(walker)?;
                 if next != Edn::Empty {
                     set.insert(next);
                 }
@@ -262,29 +272,34 @@ fn parse_set(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                     code: Code::UnexpectedEOF,
                     line: Some(walker.line),
                     column: Some(walker.column),
+                    ptr: Some(walker.ptr),
                 })
             }
         }
     }
 }
 
+#[inline]
 #[cfg(not(feature = "sets"))]
 const fn parse_set(walker: &Walker<'_>) -> Result<Edn, Error> {
     Err(Error {
         code: Code::NoFeatureSets,
         line: Some(walker.line),
         column: Some(walker.column),
+        ptr: Some(walker.ptr),
     })
 }
 
+#[inline]
 fn parse_tag(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     let tag = walker.slurp_tag();
     Ok(Edn::Tagged(
         tag.to_string(),
-        Box::new(parse_foobar(walker)?),
+        Box::new(parse_internal(walker)?),
     ))
 }
 
+#[inline]
 fn parse_map(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     let _ = walker.nibble_next(); // Consume the leading '{' char
     let mut map: BTreeMap<String, Edn> = BTreeMap::new();
@@ -300,14 +315,23 @@ fn parse_map(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                         code: Code::UnmatchedDelimiter(n),
                         line: Some(walker.line),
                         column: Some(walker.column),
+                        ptr: Some(walker.ptr),
                     });
                 }
 
-                let key = parse_foobar(walker)?;
-                let val = parse_foobar(walker)?;
+                let key = parse_internal(walker)?;
+                let val = parse_internal(walker)?;
 
                 if key != Edn::Empty && val != Edn::Empty {
-                    map.insert(key.to_string(), val);
+                    // Existing keys are considered an error
+                    if map.insert(key.to_string(), val).is_some() {
+                        return Err(Error {
+                            code: Code::HashMapDuplicateKey,
+                            line: Some(walker.line),
+                            column: Some(walker.column),
+                            ptr: Some(walker.ptr),
+                        });
+                    }
                 }
             }
             _ => {
@@ -315,12 +339,14 @@ fn parse_map(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                     code: Code::UnexpectedEOF,
                     line: Some(walker.line),
                     column: Some(walker.column),
+                    ptr: Some(walker.ptr),
                 })
             }
         }
     }
 }
 
+#[inline]
 fn parse_vector(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     let _ = walker.nibble_next(); // Consume the leading '[' char
     let mut vec = Vec::new();
@@ -332,7 +358,7 @@ fn parse_vector(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                 return Ok(Edn::Vector(Vector::new(vec)));
             }
             Some(_) => {
-                let next = parse_foobar(walker)?;
+                let next = parse_internal(walker)?;
                 if next != Edn::Empty {
                     vec.push(next);
                 }
@@ -342,12 +368,14 @@ fn parse_vector(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                     code: Code::UnexpectedEOF,
                     line: Some(walker.line),
                     column: Some(walker.column),
+                    ptr: Some(walker.ptr),
                 })
             }
         }
     }
 }
 
+#[inline]
 fn parse_list(walker: &mut Walker<'_>) -> Result<Edn, Error> {
     let _ = walker.nibble_next(); // Consume the leading '[' char
     let mut vec = Vec::new();
@@ -359,7 +387,7 @@ fn parse_list(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                 return Ok(Edn::List(List::new(vec)));
             }
             Some(_) => {
-                let next = parse_foobar(walker)?;
+                let next = parse_internal(walker)?;
                 if next != Edn::Empty {
                     vec.push(next);
                 }
@@ -369,12 +397,14 @@ fn parse_list(walker: &mut Walker<'_>) -> Result<Edn, Error> {
                     code: Code::UnexpectedEOF,
                     line: Some(walker.line),
                     column: Some(walker.column),
+                    ptr: Some(walker.ptr),
                 })
             }
         }
     }
 }
 
+#[inline]
 fn edn_literal(literal: &str) -> Result<Edn, Code> {
     fn numeric(s: &str) -> bool {
         let (first, second) = {
@@ -414,6 +444,7 @@ fn edn_literal(literal: &str) -> Result<Edn, Code> {
     })
 }
 
+#[inline]
 fn parse_char(lit: &str) -> Result<Edn, Code> {
     let lit = &lit[1..]; // ignore the leading '\\'
     match lit {
@@ -426,6 +457,7 @@ fn parse_char(lit: &str) -> Result<Edn, Code> {
     }
 }
 
+#[inline]
 fn parse_number(lit: &str) -> Result<Edn, Code> {
     let mut chars = lit.chars();
     let (number, radix) = {
@@ -497,12 +529,11 @@ fn parse_number(lit: &str) -> Result<Edn, Code> {
         }
         n if n.parse::<f64>().is_ok() => Ok(Edn::Double(n.parse::<f64>()?.into())),
         n if num_den_from_slice(&n).is_some() => Ok(Edn::Rational(num_den_from_slice(n).unwrap())),
-        _ => Err(Code::Message(
-            format!("{number} could not be parsed with radix {radix}").into_boxed_str(),
-        )),
+        _ => Err(Code::InvalidNumber),
     }
 }
 
+#[inline]
 fn num_den_from_slice(slice: impl AsRef<str>) -> Option<(i64, u64)> {
     let slice = slice.as_ref();
     let index = slice.find('/');
