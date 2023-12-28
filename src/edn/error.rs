@@ -1,38 +1,40 @@
-use alloc::boxed::Box;
-use core::fmt::{self, Debug, Display};
+use core::fmt::{self, Debug};
 use core::{convert, num, str};
 
 pub struct Error {
-    pub(crate) code: Code,
-    pub(crate) line: Option<usize>,
-    pub(crate) column: Option<usize>,
+    pub code: Code,
+    /// Counting from 1.
+    pub line: Option<usize>,
+    /// This is a utf-8 char count. Counting from 1.
+    pub column: Option<usize>,
+    /// This is a pointer into the str trying to be parsed, not a utf-8 char offset
+    pub ptr: Option<usize>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Code {
-    /// Catchall/placeholder error messages
-    Message(Box<str>),
-
     /// Parse errors
+    HashMapDuplicateKey,
     InvalidChar,
     InvalidEscape,
     InvalidKeyword,
+    InvalidNumber,
     InvalidRadix(Option<u8>),
     ParseNumber(ParseNumber),
     UnexpectedEOF,
     UnmatchedDelimiter(char),
 
-    // Feature errors
+    /// Feature errors
     NoFeatureSets,
 
-    // Deserialize errors
+    /// Deserialize errors
     Convert(&'static str),
 
-    // Navigation errors
+    /// Navigation errors
     Iter,
 
-    /// For type conversions
+    /// Type conversion errors
     TryFromInt(num::TryFromIntError),
     #[doc(hidden)]
     Infallable(), // Makes the compiler happy for converting u64 to u64 and i64 to i64
@@ -51,6 +53,7 @@ impl Error {
             code: Code::Convert(conv_type),
             line: None,
             column: None,
+            ptr: None,
         }
     }
     pub(crate) const fn iter() -> Self {
@@ -58,6 +61,7 @@ impl Error {
             code: Code::Iter,
             line: None,
             column: None,
+            ptr: None,
         }
     }
 }
@@ -66,19 +70,9 @@ impl Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "EdnError {{ code: {:?}, line: {:?}, column: {:?} }}",
-            self.code, self.line, self.column
+            "EdnError {{ code: {:?}, line: {:?}, column: {:?}, index: {:?} }}",
+            self.code, self.line, self.column, self.ptr
         )
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.code {
-            Code::Message(m) => write!(f, "{}", m.as_ref()),
-            Code::TryFromInt(e) => write!(f, "{e}"),
-            _ => todo!(),
-        }
     }
 }
 
@@ -100,6 +94,7 @@ impl From<convert::Infallible> for Error {
             code: Code::Infallable(),
             line: None,
             column: None,
+            ptr: None,
         }
     }
 }
@@ -110,6 +105,7 @@ impl From<num::TryFromIntError> for Error {
             code: Code::TryFromInt(e),
             line: None,
             column: None,
+            ptr: None,
         }
     }
 }

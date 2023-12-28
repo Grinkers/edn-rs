@@ -23,7 +23,7 @@ use ordered_float::OrderedFloat;
 ///
 /// # Errors
 ///
-/// Error implements Display and Debug. See docs for more implementations.
+/// Error implements Debug. See docs for more information.
 ///
 /// ```
 /// use crate::edn_rs::{Edn, EdnError, Deserialize};
