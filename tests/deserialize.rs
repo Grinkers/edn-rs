@@ -18,6 +18,11 @@ mod test {
     #[test]
     fn parse_empty() {
         assert_eq!(Edn::from_str("").unwrap(), Edn::Empty);
+        assert_eq!(
+            Edn::from_str("[]").unwrap(),
+            Edn::Vector(Vector::new(vec![]))
+        );
+        assert_eq!(Edn::from_str("()").unwrap(), Edn::List(List::new(vec![])));
     }
 
     #[test]
@@ -928,5 +933,12 @@ mod test {
                 Edn::Char('_'),
             ]))
         );
+    }
+
+    #[test]
+    fn invalid_edn() {
+        assert!(Edn::from_str("{ :foo 42 :foo 43 }").is_err());
+        assert!(Edn::from_str("{ :[0x42] 42 }").is_err());
+        assert!(Edn::from_str("\\cats").is_err());
     }
 }
