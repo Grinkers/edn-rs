@@ -164,20 +164,23 @@ where
 {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
         match edn {
-            Edn::Vector(_) => Ok(edn
-                .iter_some()
-                .ok_or_else(Error::iter)?
+            Edn::Vector(v) => Ok(v
+                .clone()
+                .to_vec()
+                .iter()
                 .map(|e| Deserialize::deserialize(e))
                 .collect::<Result<Self, Error>>()?),
-            Edn::List(_) => Ok(edn
-                .iter_some()
-                .ok_or_else(Error::iter)?
+            Edn::List(l) => Ok(l
+                .clone()
+                .to_vec()
+                .iter()
                 .map(|e| Deserialize::deserialize(e))
                 .collect::<Result<Self, Error>>()?),
             #[cfg(feature = "sets")]
-            Edn::Set(_) => Ok(edn
-                .iter_some()
-                .ok_or_else(Error::iter)?
+            Edn::Set(s) => Ok(s
+                .clone()
+                .to_set()
+                .iter()
                 .map(|e| Deserialize::deserialize(e))
                 .collect::<Result<Self, Error>>()?),
             _ => Err(build_deserialize_error(any::type_name::<Self>())),
@@ -193,9 +196,10 @@ where
 {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
         match edn {
-            Edn::Map(_) => edn
-                .map_iter()
-                .ok_or_else(Error::iter)?
+            Edn::Map(m) => m
+                .clone()
+                .to_map()
+                .iter()
                 .map(|(key, e)| {
                     Ok((
                         key.to_string(),
@@ -214,9 +218,10 @@ where
 {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
         match edn {
-            Edn::Map(_) => edn
-                .map_iter()
-                .ok_or_else(Error::iter)?
+            Edn::Map(m) => m
+                .clone()
+                .to_map()
+                .iter()
                 .map(|(key, e)| {
                     Ok((
                         key.to_string(),
@@ -237,9 +242,10 @@ where
 {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
         match edn {
-            Edn::Set(_) => edn
-                .set_iter()
-                .ok_or_else(Error::iter)?
+            Edn::Set(s) => s
+                .clone()
+                .to_set()
+                .iter()
                 .map(|e| Deserialize::deserialize(e).map_err(|_| Error::deserialize("HashSet")))
                 .collect::<Result<Self, Error>>(),
             _ => Err(build_deserialize_error(any::type_name::<Self>())),
@@ -254,9 +260,10 @@ where
 {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
         match edn {
-            Edn::Set(_) => edn
-                .set_iter()
-                .ok_or_else(Error::iter)?
+            Edn::Set(s) => s
+                .clone()
+                .to_set()
+                .iter()
                 .map(|e| Deserialize::deserialize(e).map_err(|_| Error::deserialize("BTreeSet")))
                 .collect::<Result<Self, Error>>(),
             _ => Err(build_deserialize_error(any::type_name::<Self>())),
