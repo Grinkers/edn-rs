@@ -16,7 +16,6 @@ use crate::edn::{Edn, List, Map, Vector};
 
 const DELIMITERS: [char; 8] = [',', ']', '}', ')', ';', '(', '[', '{'];
 
-#[derive(Debug)]
 struct Walker<'w> {
     slice: &'w str,
     ptr: usize,
