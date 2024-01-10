@@ -26,6 +26,11 @@ mod test {
     }
 
     #[test]
+    fn parse_invalid_vec() {
+        assert!(Edn::from_str("[42").is_err());
+    }
+
+    #[test]
     fn parse_whitespace_only() {
         let edn = "
                           \r\n";
@@ -940,5 +945,6 @@ mod test {
         assert!(Edn::from_str("{ :foo 42 :foo 43 }").is_err());
         assert!(Edn::from_str("{ :[0x42] 42 }").is_err());
         assert!(Edn::from_str("\\cats").is_err());
+        assert!(Edn::from_str("42/").is_err());
     }
 }
