@@ -92,8 +92,8 @@ mod tests {
             amount: u64,
         }
 
-        let a: A = edn_rs::from_str("{ :amount \"123\" }").unwrap();
-        assert_eq!(a, A { amount: 123 });
+        let a = edn_rs::from_str::<A>("{ :amount \"123\" }");
+        assert!(a.is_err());
     }
 
     #[test]

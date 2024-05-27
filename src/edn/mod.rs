@@ -8,7 +8,6 @@ use alloc::{fmt, format};
 #[cfg(feature = "sets")]
 use core::cmp::{Ord, PartialOrd};
 use core::convert::TryFrom;
-use core::num;
 
 use crate::deserialize::parse::{self};
 use utils::index::Index;
@@ -267,85 +266,73 @@ impl core::fmt::Display for Edn {
 }
 
 impl Edn {
-    /// `to_float` takes an `Edn` and returns an `Option<f64>` with its value. Most types return None
+    /// `to_float` takes an `Edn` and returns an `Option<f64>` with its value.
+    /// Numbers will be converted and may be lossy. Other types return None.
     /// ```rust
     /// use edn_rs::edn::{Edn, Vector};
     ///
-    /// let key = Edn::Key(String::from(":1234"));
     /// let q = Edn::Rational((3, 4));
     /// let i = Edn::Int(12i64);
+    /// let huge_uint = Edn::UInt(123_456_789_987_654_321);
     ///
     /// assert_eq!(Edn::Vector(Vector::empty()).to_float(), None);
-    /// assert_eq!(key.to_float().unwrap(),1234f64);
     /// assert_eq!(q.to_float().unwrap(), 0.75f64);
     /// assert_eq!(i.to_float().unwrap(), 12f64);
+    /// assert_eq!(huge_uint.to_float().unwrap(), 1.2345678998765432e17);
     /// ```
     #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn to_float(&self) -> Option<f64> {
         match self {
-            Self::Key(k) => k.replace(':', "").parse::<f64>().ok(),
-            Self::Str(s) => s.parse::<f64>().ok(),
-            Self::Int(i) => to_double(i).ok(),
-            Self::UInt(u) => to_double(u).ok(),
+            Self::Int(i) => Some(*i as f64),
+            Self::UInt(u) => Some(*u as f64),
             Self::Double(d) => Some(d.to_float()),
             Self::Rational(r) => Some(rational_to_double(*r)),
             _ => None,
         }
     }
 
-    /// `to_int` takes an `Edn` and returns an `Option<i64>` with its value. Most types return None
+    /// `to_int` takes an `Edn` and returns an `Option<i64>` with its value.
+    /// Floating-point numbers will be rounded. Uint is checked, if it would overflow, returns None.
     /// ```rust
     /// use edn_rs::edn::{Edn, Vector};
     ///
-    /// let key = Edn::Key(String::from(":1234"));
     /// let q = Edn::Rational((3, 4));
     /// let f = Edn::Double(12.3f64.into());
     ///
     /// assert_eq!(Edn::Vector(Vector::empty()).to_float(), None);
-    /// assert_eq!(key.to_int().unwrap(),1234i64);
     /// assert_eq!(q.to_int().unwrap(), 1i64);
     /// assert_eq!(f.to_int().unwrap(), 12i64);
     /// ```
     #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub fn to_int(&self) -> Option<i64> {
         match self {
-            Self::Key(k) => k.replace(':', "").parse::<i64>().ok(),
-            Self::Str(s) => s.parse::<i64>().ok(),
             Self::Int(i) => Some(*i),
             #[allow(clippy::cast_possible_wrap)]
             Self::UInt(u) if i64::try_from(*u).is_ok() => Some(*u as i64),
             #[cfg(feature = "std")]
             #[allow(clippy::cast_possible_truncation)]
             Self::Double(d) => Some((*d).to_float().round() as i64),
+            Self::UInt(u) if i64::try_from(*u).is_ok() => Some(i64::try_from(*u).unwrap_or(0)),
             #[cfg(feature = "std")]
-            #[allow(clippy::cast_possible_truncation)]
             Self::Rational(r) => Some(rational_to_double(*r).round() as i64),
             _ => None,
         }
     }
 
-    /// Similar to `to_int` but returns an `Option<u64>`
+    /// Similar to `to_int` but returns an `Option<u64>`. Negative `Int` will return None.
     #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn to_uint(&self) -> Option<u64> {
         match self {
-            Self::Str(s) => s.parse::<u64>().ok(),
             #[allow(clippy::cast_sign_loss)]
             Self::Int(i) if i > &0 => Some(*i as u64),
             Self::UInt(i) => Some(*i),
             #[cfg(feature = "std")]
-            Self::Double(d) if d.to_float() > 0f64 =>
-            {
-                #[allow(clippy::cast_sign_loss)]
-                #[allow(clippy::cast_possible_truncation)]
-                Some((*d).to_float().round() as u64)
-            }
+            Self::Double(d) if d.to_float().round() > 0f64 => Some((*d).to_float().round() as u64),
             #[cfg(feature = "std")]
-            Self::Rational(r) if r.0 > 0 =>
-            {
-                #[allow(clippy::cast_sign_loss)]
-                #[allow(clippy::cast_possible_truncation)]
-                Some(rational_to_double(*r).round() as u64)
-            }
+            Self::Rational(r) if r.0 > 0 => Some(rational_to_double(*r).round() as u64),
             _ => None,
         }
     }
@@ -672,13 +659,6 @@ impl core::str::FromStr for Edn {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse::parse(s)
     }
-}
-
-fn to_double<T>(i: T) -> Result<f64, num::ParseFloatError>
-where
-    T: fmt::Debug,
-{
-    format!("{i:?}").parse::<f64>()
 }
 
 #[allow(clippy::cast_precision_loss)]
