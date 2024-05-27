@@ -343,18 +343,18 @@ impl Edn {
     ///
     /// let b = Edn::Bool(true);
     /// let s = Edn::Str("true".to_string());
-    /// let symbol = Edn::Symbol("false".to_string());
+    /// let nil = Edn::Nil;
     ///
-    /// assert_eq!(b.to_bool().unwrap(),true);
-    /// assert_eq!(s.to_bool().unwrap(),true);
-    /// assert_eq!(symbol.to_bool().unwrap(),false);
+    /// assert_eq!(b.to_bool(),true);
+    /// assert_eq!(s.to_bool(),true);
+    /// assert_eq!(nil.to_bool(),false);
     /// ```
     #[must_use]
-    pub fn to_bool(&self) -> Option<bool> {
+    pub const fn to_bool(&self) -> bool {
         match self {
-            Self::Bool(b) => Some(*b),
-            Self::Str(s) | Self::Symbol(s) => s.parse::<bool>().ok(),
-            _ => None,
+            Self::Bool(b) => *b,
+            Self::Nil => false,
+            _ => true,
         }
     }
 
@@ -490,22 +490,10 @@ impl Edn {
     #[must_use]
     pub fn to_bool_vec(&self) -> Option<Vec<bool>> {
         match self {
-            Self::Vector(_) if !self.iter_some()?.any(|e| e.to_bool().is_none()) => Some(
-                self.iter_some()?
-                    .map(Self::to_bool)
-                    .collect::<Option<Vec<bool>>>()?,
-            ),
-            Self::List(_) if !self.iter_some()?.any(|e| e.to_bool().is_none()) => Some(
-                self.iter_some()?
-                    .map(Self::to_bool)
-                    .collect::<Option<Vec<bool>>>()?,
-            ),
+            Self::Vector(_) => Some(self.iter_some()?.map(Self::to_bool).collect::<Vec<bool>>()),
+            Self::List(_) => Some(self.iter_some()?.map(Self::to_bool).collect::<Vec<bool>>()),
             #[cfg(feature = "sets")]
-            Self::Set(_) if !self.iter_some()?.any(|e| e.to_bool().is_none()) => Some(
-                self.iter_some()?
-                    .map(Self::to_bool)
-                    .collect::<Option<Vec<bool>>>()?,
-            ),
+            Self::Set(_) => Some(self.iter_some()?.map(Self::to_bool).collect::<Vec<bool>>()),
             _ => None,
         }
     }
@@ -741,17 +729,6 @@ mod test {
         let v = vec![true, true, false];
 
         assert_eq!(edn.to_bool_vec().unwrap(), v);
-    }
-
-    #[test]
-    fn to_bool_vec_with_non_bool_is_none() {
-        let edn = Edn::Vector(Vector::new(vec![
-            Edn::Bool(true),
-            Edn::Int(5),
-            Edn::Bool(false),
-        ]));
-
-        assert_eq!(edn.to_bool_vec(), None);
     }
 
     #[test]

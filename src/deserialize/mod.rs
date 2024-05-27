@@ -133,7 +133,7 @@ impl_deserialize_uint!(u8, u16, u32, u64, usize);
 
 impl Deserialize for bool {
     fn deserialize(edn: &Edn) -> Result<Self, Error> {
-        edn.to_bool().ok_or_else(|| build_deserialize_error("bool"))
+        Ok(edn.to_bool())
     }
 }
 
